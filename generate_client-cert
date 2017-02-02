@@ -1,0 +1,71 @@
+#!/bin/bash
+
+show_usage()
+{
+        echo "Using: $0 username_for_openvpn"
+        echo "Example: $0 ivanov"
+	echo "Genaraneting .crt, .key, and .config files for OpenVPN and send this fils on e-mail "
+	exit 1
+}
+
+detectOption()
+{
+if [  "$#" = 0 ]; then
+        echo "Error! No options!"
+        show_usage
+        exit 1
+else
+        while [ 1 ] ; do
+                if [ "$1" = "--yes" ] ; then
+                        pYes=1
+                elif [ "${1#--server=}" != "$1" ] ; then
+                        pServer="${1#--server=}"
+                elif [ "${1#--site=}" != "$1" ] ; then
+                        pSite="${1#--site=}"
+                elif [ -z "$1" ] ; then
+                        break # Ключи кончились
+                else
+                        echo "Error: unknown key" 1>&2
+                        show_usage
+                        exit 1
+                 fi
+        shift
+        done
+fi
+}
+
+RSA_PATH="/usr/share/easy-rsa/2.0/"
+OVPN_CONF_PATH="/etc/openvpn"
+USER_DEF_CONF_PATH="/opt/ovpn/config_default"
+USER_CONF_PATH="/opt/ovpn/config_client"
+MAIL_TO="obruchev@matorin-un.ru"
+#MAIL_TO="DKuznecov@matorin-un.ru"
+MAIL_SUBJ="OpenVPN config files"
+MAIL_MSG="OpenVPN config, cert and key files for user $1"
+CLIENT_OS="WIN"
+
+cd $RSA_PATH
+source ./vars
+./pkitool $1
+mv keys/$1.* $OVPN_CONF_PATH/.key/
+
+mkdir $USER_CONF_PATH/$1
+
+cp $OVPN_CONF_PATH/.key/$1.key $USER_CONF_PATH/$1/
+cp $OVPN_CONF_PATH/.key/$1.crt $USER_CONF_PATH/$1/
+cp $OVPN_CONF_PATH/.key/ca.crt $USER_CONF_PATH/$1/
+cp $OVPN_CONF_PATH/.key/dh2048.pem $USER_CONF_PATH/$1/
+cp $OVPN_CONF_PATH/.tls/ta.key  $USER_CONF_PATH/$1/
+cp $USER_DEF_CONF_PATH/matorin.ovpn $USER_CONF_PATH/$1/
+
+echo -e "\r\nkey $1.key\r\ncert $1.crt\r\n" >> $USER_CONF_PATH/$1/matorin.ovpn
+cd $USER_CONF_PATH/$1/
+
+if [$CLIENT_OS!="WIN"] ; then
+	sed --in-place 's/\x0d$//' matorin.ovpn
+fi
+
+rar a -m5 $1 ./* 
+find ./ -type f -not -name '*.rar' -delete
+
+echo $MAIL_MSG | mutt -a $USER_CONF_PATH/$1/$1.rar -s "$MAIL_SUBJ" -- $MAIL_TO 
