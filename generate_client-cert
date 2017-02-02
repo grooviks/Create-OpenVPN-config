@@ -61,7 +61,7 @@ cp $USER_DEF_CONF_PATH/matorin.ovpn $USER_CONF_PATH/$1/
 echo -e "\r\nkey $1.key\r\ncert $1.crt\r\n" >> $USER_CONF_PATH/$1/matorin.ovpn
 cd $USER_CONF_PATH/$1/
 
-if [$CLIENT_OS!="WIN"] ; then
+if [ $CLIENT_OS != "WIN" ] ; then
 	sed --in-place 's/\x0d$//' matorin.ovpn
 fi
 
